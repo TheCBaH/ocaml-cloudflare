@@ -8,25 +8,20 @@
 #       main → <base-name>;  other → <base-name>-<branch>
 #
 #   deploy <backend> <wrangler-config> <dist-dir> <base-name>
-#       Deploy a staged worker via wrangler.  Requires CLOUDFLARE_API_TOKEN
-#       and CLOUDFLARE_ACCOUNT_ID in the environment.
+#       Upload a new version via `wrangler versions upload`.  Requires
+#       CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in the environment.
 #       Worker name and git SHA are computed automatically.
-#       Writes the live workers.dev URL to <dist-dir>/.deploy-url and the
-#       deployed version ID to <dist-dir>/.deploy-version.
-#
-#   wait <backend> <base-name>
-#       Poll `wrangler deployments status` until the version ID from the last
-#       deploy is the active deployment.  Requires CF credentials.
-#       Timeout controlled by CF_WAIT_TIMEOUT (default 60s) and
-#       CF_WAIT_INTERVAL (default 5s).
+#       On main: promotes to 100% and writes the production URL to
+#         <dist-dir>/.deploy-url.
+#       On other branches: skips promotion and writes the version-specific
+#         preview URL to <dist-dir>/.deploy-url.
 #
 #   test <backend> <expected-text> <base-name> [url]
-#       Curl a live worker endpoint and assert it contains <expected-text>
-#       and the current commit SHA.
-#       url defaults to <dist-dir>/.deploy-url content.
+#       Curl the URL from <dist-dir>/.deploy-url and assert it contains
+#       <expected-text> and the current commit SHA.
 set -euo pipefail
 
-CMD="${1:?Usage: cf-worker.sh <name|deploy|wait|test> [args...]}"
+CMD="${1:?Usage: cf-worker.sh <name|deploy|test> [args...]}"
 shift
 
 _branch() {
@@ -58,51 +53,35 @@ case "$CMD" in
     GIT_SHA="$(_git_sha)"
     LOG="$DIST_DIR/deploy.log"
 
-    npm exec -- wrangler deploy \
+    npm exec -- wrangler versions upload \
         --config "$CONFIG" \
         --name "$WORKER_NAME" \
         --var "COMMIT_SHA:$GIT_SHA" \
+        --message "$GIT_SHA" \
         2>&1 | tee "$LOG"
 
-    URL=$(grep -oE 'https://[^ ]+\.workers\.dev' "$LOG" | head -1)
-    [[ -n "$URL" ]] || { echo "error: could not extract workers.dev URL" >&2; exit 1; }
-    echo "$URL" > "$DIST_DIR/.deploy-url"
-
-    VERSION=$(grep -oE 'Current Version ID: [0-9a-f-]+' "$LOG" | head -1 | awk '{print $NF}')
+    VERSION=$(grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' "$LOG" | head -1)
     [[ -n "$VERSION" ]] || { echo "error: could not extract version ID" >&2; exit 1; }
-    echo "$VERSION" > "$DIST_DIR/.deploy-version"
 
-    echo "$BACKEND deploy URL: $URL  version: $VERSION"
-    ;;
+    PREVIEW_URL=$(grep -oE 'https://[^ ]*\.workers\.dev' "$LOG" | head -1)
+    [[ -n "$PREVIEW_URL" ]] || { echo "error: could not extract preview URL" >&2; exit 1; }
 
-  wait)
-    BACKEND="${1:?}"; BASE_NAME="${2:?}"
-    : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN is not set}"
-    : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID is not set}"
-    WORKER_NAME="$(_worker_name "$BASE_NAME")"
-    EXPECTED_VERSION=$(cat "workers/$BACKEND/dist/.deploy-version" 2>/dev/null || true)
-    [[ -n "$EXPECTED_VERSION" ]] \
-        || { echo "error: version file not found — run 'make deploy-$BACKEND' first" >&2; exit 1; }
+    if [[ "$(_branch)" == "main" ]]; then
+        npm exec -- wrangler versions deploy \
+            --name "$WORKER_NAME" \
+            --version-id "$VERSION" \
+            --percentage 100 \
+            --message "$GIT_SHA" \
+            --yes \
+            2>&1 | tee -a "$LOG"
+        echo "$BACKEND promoted to production: version $VERSION"
+    else
+        echo "$BACKEND not promoted (branch: $(_branch))"
+    fi
 
-    TIMEOUT="${CF_WAIT_TIMEOUT:-60}"
-    INTERVAL="${CF_WAIT_INTERVAL:-5}"
-
-    echo "Waiting for $BACKEND worker '$WORKER_NAME' to activate version $EXPECTED_VERSION (timeout ${TIMEOUT}s)..."
-    DEADLINE=$(( $(date +%s) + TIMEOUT ))
-    while true; do
-        STATUS=$(npm exec -- wrangler deployments status \
-            --name "$WORKER_NAME" --json 2>/dev/null || true)
-        if echo "$STATUS" | grep -qF "$EXPECTED_VERSION"; then
-            echo "$BACKEND deployment confirmed active: version $EXPECTED_VERSION"
-            break
-        fi
-        if (( $(date +%s) >= DEADLINE )); then
-            echo "ERROR: timed out after ${TIMEOUT}s — last status: $STATUS" >&2
-            exit 1
-        fi
-        echo "  not yet — retrying in ${INTERVAL}s..."
-        sleep "$INTERVAL"
-    done
+    # Always test via the version-specific preview URL — no propagation delay
+    echo "$PREVIEW_URL" > "$DIST_DIR/.deploy-url"
+    echo "$BACKEND preview URL: $PREVIEW_URL  version: $VERSION"
     ;;
 
   test)
@@ -125,7 +104,7 @@ case "$CMD" in
     ;;
 
   *)
-    echo "error: unknown command '$CMD' — expected name, deploy, wait, or test" >&2
+    echo "error: unknown command '$CMD' — expected name, deploy, or test" >&2
     exit 1
     ;;
 esac

@@ -112,16 +112,6 @@ gh-secrets-main: check-cf-credentials
 
 gh-secrets: gh-secrets-devel gh-secrets-main
 
-# ── CF propagation wait ───────────────────────────────────────────────────────
-
-cf-wait-jsoo:
-	scripts/cf-worker.sh wait jsoo ocaml-worker-jsoo
-
-cf-wait-melange:
-	scripts/cf-worker.sh wait melange ocaml-worker-melange
-
-cf-wait: cf-wait-jsoo cf-wait-melange
-
 # ── Integration tests (hit live CF endpoints) ─────────────────────────────────
 
 integration-test-jsoo:
@@ -134,19 +124,16 @@ integration-test-workers: integration-test-jsoo integration-test-melange
 
 # ── Combined deploy + test ────────────────────────────────────────────────────
 
-deploy-test-jsoo: deploy-jsoo cf-wait-jsoo integration-test-jsoo
+deploy-test-jsoo: deploy-jsoo integration-test-jsoo
 
-deploy-test-melange: deploy-melange cf-wait-melange integration-test-melange
+deploy-test-melange: deploy-melange integration-test-melange
 
-deploy-test-workers: deploy-workers cf-wait integration-test-workers
+deploy-test-workers: deploy-workers integration-test-workers
 
 .PHONY: \
 	build-jsoo \
 	build-melange \
 	build-workers \
-	cf-wait \
-	cf-wait-jsoo \
-	cf-wait-melange \
 	check-cf-credentials \
 	clean \
 	default \

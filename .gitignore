@@ -7,6 +7,8 @@ workers/*/dist/
 # npm local installs (restored by `npm ci`)
 node_modules/
 
+.claude/
+
 # wrangler local cache (dev state, login tokens)
 .wrangler/
 

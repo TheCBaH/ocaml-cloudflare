@@ -12,7 +12,7 @@ workers/
   melange/      OCaml source + dune config for the melange backend
 package.json    wrangler pinned as a local dev dependency
 scripts/
-  cf-worker.sh  CF Worker helper: name / deploy / wait / test commands
+  cf-worker.sh  CF Worker helper: name / deploy / test commands
 src/            Native OCaml example library
 .devcontainer/  Devcontainer definition + custom features
 .github/
@@ -54,10 +54,10 @@ src/            Native OCaml example library
 
 | Target | Description |
 |---|---|
-| `make deploy-jsoo` | Deploy jsoo worker to Cloudflare |
-| `make deploy-melange` | Deploy melange worker to Cloudflare |
-| `make deploy-workers` | Both deploys |
-| `make deploy-test-workers` | Deploy + wait + integration test |
+| `make deploy-jsoo` | Upload jsoo worker version to Cloudflare (promotes on `main`) |
+| `make deploy-melange` | Upload melange worker version to Cloudflare (promotes on `main`) |
+| `make deploy-workers` | Both uploads |
+| `make deploy-test-workers` | Both uploads + integration tests via preview URL |
 
 ### GitHub secrets
 
@@ -114,9 +114,9 @@ text and the exact SHA are present.
 1. `make runtest` — native OCaml build and tests
 2. `make npm-install` + `make verify-workers` — build JS bundles, smoke-test with Node.js
 3. On push to `devel` or `main` only:
-   - `make deploy-jsoo` + `make deploy-melange` — deploy to Cloudflare
-   - `make cf-wait` — poll `wrangler deployments status` until new version is active
-   - `make integration-test-workers` — curl live URLs, assert text + SHA
+   - `make deploy-jsoo` + `make deploy-melange` — upload new version to Cloudflare
+   - On `main`: also promotes to 100% production traffic
+   - Integration tests always run against the version-specific preview URL (no propagation delay)
 
 Branch-scoped worker names (computed in `scripts/cf-worker.sh`):
 - `main` → `ocaml-worker-jsoo` / `ocaml-worker-melange`
@@ -149,5 +149,5 @@ exec "$@"
 | OCaml | 4.14.2 | Compiler (via opam devcontainer feature) |
 | js_of_ocaml | 6.3.2 | OCaml → JS IIFE |
 | melange | 6.0.1 | OCaml → ESM |
-| dune | 3.22 | Build system (`lang 3.8`, `using melange 0.1`) |
+| dune | 3.22.1 | Build system (`lang 3.17`, `using melange 0.1`) |
 | wrangler | 4.x | CF Worker deploy + local dev |

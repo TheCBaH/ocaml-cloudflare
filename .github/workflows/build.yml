@@ -40,13 +40,6 @@ jobs:
           CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
           CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
           make deploy-melange
-    - name: wait for CF propagation
-      if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
-      run: |
-        ${{ env.EXEC }} env \
-          CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-          CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
-          make cf-wait
     - name: integration test workers
       if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
       run: ${{ env.EXEC }} make integration-test-workers
