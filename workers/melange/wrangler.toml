@@ -1,0 +1,10 @@
+name = "ocaml-worker-melange"
+main = "dist/entry.js"
+compatibility_date = "2024-01-01"
+
+# Wrangler bundles dist/entry.js + all imported melange output modules via
+# esbuild, producing a single upload bundle.
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]

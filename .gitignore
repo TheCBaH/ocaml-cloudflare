@@ -1,0 +1,14 @@
+# dune build artefacts
+_build/
+
+# wrangler staging directories (rebuilt by `make stage-*`)
+workers/*/dist/
+
+# npm local installs (restored by `npm ci`)
+node_modules/
+
+# wrangler local cache (dev state, login tokens)
+.wrangler/
+
+# local Cloudflare credentials wrapper — contains secrets, never commit
+with-cloudflare

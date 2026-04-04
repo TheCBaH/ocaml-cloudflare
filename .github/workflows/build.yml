@@ -1,0 +1,52 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The cloudflare environment is needed to expose secrets for the deploy
+    # steps below. On branches that don't deploy the steps are skipped but
+    # the environment reference is harmless.
+    environment: ${{ github.ref_name == 'main' && 'cloudflare-production' || 'cloudflare-devel' }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+    - name: devcontainer
+      uses: ./.github/workflows/actions/devcontainer
+      id: devcontainer
+    - name: setup
+      run: echo 'EXEC=${{ steps.devcontainer.outputs.exec }}' >> $GITHUB_ENV
+    - name: native build
+      run: ${{ env.EXEC }} make runtest
+    - name: npm install
+      run: ${{ env.EXEC }} make npm-install
+    - name: verify workers
+      run: ${{ env.EXEC }} make verify-workers
+    - name: deploy jsoo worker
+      if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
+      run: |
+        ${{ env.EXEC }} env \
+          CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+          CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
+          make deploy-jsoo
+    - name: deploy melange worker
+      if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
+      run: |
+        ${{ env.EXEC }} env \
+          CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+          CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
+          make deploy-melange
+    - name: wait for CF propagation
+      if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
+      run: |
+        ${{ env.EXEC }} env \
+          CLOUDFLARE_API_TOKEN="${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+          CLOUDFLARE_ACCOUNT_ID="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" \
+          make cf-wait
+    - name: integration test workers
+      if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
+      run: ${{ env.EXEC }} make integration-test-workers

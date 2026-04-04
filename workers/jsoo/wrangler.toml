@@ -1,0 +1,12 @@
+name = "ocaml-worker-jsoo"
+main = "dist/worker.js"
+compatibility_date = "2024-01-01"
+
+# The dist/worker.js is already a self-contained ESM file (jsoo IIFE + export
+# default) produced by `make stage-jsoo`.  Tell wrangler not to re-bundle it
+# so that esbuild does not choke on the non-module IIFE preamble.
+no_bundle = true
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]
