@@ -3,4 +3,4 @@
  (modes js)
  (libraries js_of_ocaml)
  (js_of_ocaml
-  (flags (:standard --target-env browser))))
+  (sourcemap no)))
