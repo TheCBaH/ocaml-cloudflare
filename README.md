@@ -7,6 +7,11 @@ Hello-world [Cloudflare Workers](https://workers.cloudflare.com/) compiled from 
 - **[js_of_ocaml](https://ocsigen.org/js_of_ocaml/)** — compiles OCaml bytecode to a JS bundle
 - **[melange](https://melange.re/)** — compiles OCaml to native ES modules
 
+Request/response types and the worker handler live in a shared pure-OCaml
+library (`lib/`) used by both backends and the native binary. Each JS bridge is
+a thin layer that maps JS↔OCaml types and appends the backend name and commit
+SHA to the response.
+
 ## Get started
 
 The easiest way is to open this repository in GitHub Codespaces — everything is pre-installed and configured.

@@ -7,20 +7,11 @@ runtest:
 	opam exec -- dune build
 	opam exec -- dune runtest
 
-static:
-	opam exec -- dune build --profile static
-
 format:
-	opam exec dune fmt
+	opam exec -- dune fmt
 
 run:
-	opam exec dune exec ./main.exe
-
-top:
-	opam exec dune exec ./example_top.exe
-
-utop:
-	opam exec dune utop
+	opam exec -- dune exec src/main.exe
 
 clean:
 	opam exec dune $@
@@ -49,8 +40,6 @@ stage-melange: build-melange
 	mkdir -p workers/melange/dist
 	cp -r _build/default/workers/melange/output workers/melange/dist/
 	cp workers/melange/entry.js workers/melange/dist/
-
-build-workers: build-jsoo build-melange
 
 stage-workers: stage-jsoo stage-melange
 
@@ -133,7 +122,6 @@ deploy-test-workers: deploy-workers integration-test-workers
 .PHONY: \
 	build-jsoo \
 	build-melange \
-	build-workers \
 	check-cf-credentials \
 	clean \
 	default \
@@ -161,7 +149,4 @@ deploy-test-workers: deploy-workers integration-test-workers
 	stage-jsoo \
 	stage-melange \
 	stage-workers \
-	static \
-	top \
-	utop \
 	verify-workers \

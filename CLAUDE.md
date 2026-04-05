@@ -7,13 +7,18 @@ fully configured OCaml + Node.js environment.
 ## Repository layout
 
 ```
+lib/
+  worker_types.ml   Shared request/response types + pretty printers
+  worker_handler.ml Shared handle : request -> response implementation
+src/
+  main.ml           Native binary — pretty-prints a sample request/response
+  main.t            Cram test for main.exe (run by dune runtest)
 workers/
   jsoo/         OCaml source + dune config for the jsoo backend
   melange/      OCaml source + dune config for the melange backend
 package.json    wrangler pinned as a local dev dependency
 scripts/
   cf-worker.sh  CF Worker helper: name / deploy / test commands
-src/            Native OCaml example library
 .devcontainer/  Devcontainer definition + custom features
 .github/
   workflows/
@@ -29,7 +34,7 @@ src/            Native OCaml example library
 | Target | Description |
 |---|---|
 | `make` | Native OCaml build |
-| `make runtest` | Native build + dune tests |
+| `make runtest` | Native build + dune tests (includes `main.t` cram test) |
 | `make npm-install` | Install `node_modules` from lockfile (`npm ci`) |
 | `make stage-jsoo` | Compile OCaml → JS, assemble `workers/jsoo/dist/` |
 | `make stage-melange` | Compile OCaml → JS, assemble `workers/melange/dist/` |
@@ -71,6 +76,22 @@ Use `./with-cloudflare make <target>` to inject credentials from the local wrapp
 
 ## Architecture
 
+### Shared library (`lib/`)
+
+`lib/worker_lib` is a pure OCaml library compiled in all three modes
+(`byte native melange`) and used by every target:
+
+- `Worker_types` — `request` (url, method, headers) and `response` (status,
+  body) types, `method_of/to_string` helpers, and `pp_request`/`pp_response`
+  pretty-printers.
+- `Worker_handler` — `handle : request -> response` that produces the greeting
+  body from request fields; no JS FFI.
+
+Each JS worker bridge maps JS→OCaml request fields, calls `Worker_handler.handle`,
+then appends the backend name and `COMMIT_SHA` env binding before constructing
+the JS `Response`. The native `main.exe` constructs a sample request and pretty-
+prints the response directly.
+
 ### jsoo backend
 
 jsoo compiles OCaml to a self-contained JavaScript IIFE bundle. Cloudflare
@@ -101,7 +122,7 @@ Each worker reads a `COMMIT_SHA` CF Worker binding (injected at deploy time
 via `--var COMMIT_SHA:<sha>`) and includes it in the response:
 
 ```
-Hello, World from js_of_ocaml! (commit: abc1234)
+Hello, World! [GET https://example.com/] from js_of_ocaml (commit: abc1234)
 ```
 
 Post-deploy integration tests curl the live URL and assert both the greeting

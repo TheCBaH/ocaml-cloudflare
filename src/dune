@@ -1,2 +1,6 @@
-(library
- (name example))
+(executable
+ (name main)
+ (libraries worker_lib))
+
+(cram
+ (deps %{exe:main.exe}))

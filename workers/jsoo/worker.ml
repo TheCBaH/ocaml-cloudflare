@@ -1,29 +1,22 @@
 open Js_of_ocaml
 
-(* Access the CF Worker global Response constructor *)
 let response_ctor : 'a Js.t =
   Js.Unsafe.get Js.Unsafe.global (Js.string "Response")
 
-(* Read a string binding from the CF Worker env object.
-   Returns "unknown" when the binding is absent (e.g. local dev). *)
-let env_string env key =
-  let v = Js.Unsafe.get env (Js.string key) in
-  (* coerce to js_string Js.t; undefined becomes the literal "undefined" but
-     that is fine for local dev — we only check the SHA in CI. *)
-  Js.to_string (Js.Unsafe.coerce v)
+let js_get obj key =
+  let v : Js.js_string Js.t Js.optdef = Js.Unsafe.get obj (Js.string key) in
+  Js.Optdef.get v (fun () -> Js.string "") |> Js.to_string
 
-(* The fetch handler receives (request, env) from the ESM suffix.
-   It returns a plain-text Response that embeds the commit SHA so the
-   post-deploy integration test can verify the right version is live. *)
-let fetch _request env =
-  let sha = env_string env "COMMIT_SHA" in
-  let body =
-    "Hello, World from js_of_ocaml! (commit: " ^ sha ^ ")"
-  in
+let fetch request env =
+  let url     = js_get request "url" in
+  let method_ = Worker_types.method_of_string (js_get request "method") in
+  let req     = Worker_types.{ url; method_; headers = [] } in
+  let resp    = Worker_handler.handle req in
+  let sha     = js_get env "COMMIT_SHA" in
+  let body    = resp.Worker_types.body ^ " from js_of_ocaml (commit: " ^ sha ^ ")" in
   Js.Unsafe.new_obj response_ctor
     [| Js.Unsafe.inject (Js.string body) |]
 
-(* Expose the handler as a global so the ESM suffix can re-export it *)
 let () =
   Js.Unsafe.set Js.Unsafe.global
     (Js.string "ocamlWorkerFetch")

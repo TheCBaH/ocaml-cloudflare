@@ -1,5 +1,6 @@
 (melange.emit
  (target output)
  (modules worker)
+ (libraries worker_lib)
  (preprocess (pps melange.ppx))
  (module_systems esm))

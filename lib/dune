@@ -1,0 +1,4 @@
+(library
+ (name worker_lib)
+ (wrapped false)
+ (modes byte native melange))
