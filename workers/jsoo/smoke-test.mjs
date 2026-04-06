@@ -1,29 +1,48 @@
 // Run with: node workers/jsoo/smoke-test.mjs
-// Verifies that the staged dist/worker.js exports a valid CF Worker handler.
-import { createRequire } from 'module';
+// Tests OCaml step functions and bundle structure.
+// Full Workflow execution requires a CF runtime — use `make dev-jsoo`.
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-// Stub Response so the jsoo bundle can initialise without a real CF runtime
+// Stubs for CF APIs referenced during module evaluation
 globalThis.Response = class {
-  constructor(body) { this.body = body; }
+  constructor(body, init) { this.body = body; this.init = init; }
 };
 
 const src = await import(join(__dir, 'dist/worker.js'));
 
+// 1. default.fetch is exported
 if (typeof src.default?.fetch !== 'function') {
   console.error('jsoo smoke-test FAILED: default.fetch is not a function');
   console.error('  exports:', Object.keys(src));
   process.exit(1);
 }
 
-// Call the handler with a mock env and assert it returns a Response-like object
-const r = src.default.fetch({}, { COMMIT_SHA: 'smoke-test' }, {});
-if (!r?.body?.includes('js_of_ocaml')) {
-  console.error('jsoo smoke-test FAILED: unexpected response body:', r?.body);
+// 2. OcamlWorkflow class is exported
+if (typeof src.OcamlWorkflow !== 'function') {
+  console.error('jsoo smoke-test FAILED: OcamlWorkflow class not exported');
   process.exit(1);
 }
 
-console.log('jsoo smoke-test passed  (body: %s)', r.body);
+// 3. OCaml step functions are set on globalThis by the jsoo IIFE
+const methodNorm = globalThis.ocamlStepParse('https://example.com/', 'GET');
+if (methodNorm !== 'GET') {
+  console.error('jsoo smoke-test FAILED: ocamlStepParse returned', methodNorm);
+  process.exit(1);
+}
+
+const body = globalThis.ocamlStepGreet('https://example.com/', 'GET');
+if (!body?.includes('Hello, World!')) {
+  console.error('jsoo smoke-test FAILED: ocamlStepGreet returned', body);
+  process.exit(1);
+}
+
+const annotated = globalThis.ocamlStepAnnotate(body, 'smoke-test');
+if (!annotated?.includes('js_of_ocaml') || !annotated.includes('smoke-test')) {
+  console.error('jsoo smoke-test FAILED: ocamlStepAnnotate returned', annotated);
+  process.exit(1);
+}
+
+console.log('jsoo smoke-test passed  (body: %s)', annotated);

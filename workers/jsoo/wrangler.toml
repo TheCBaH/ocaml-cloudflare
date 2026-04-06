@@ -10,3 +10,8 @@ no_bundle = true
 [[rules]]
 type = "ESModule"
 globs = ["**/*.js"]
+
+[[workflows]]
+name = "ocaml-workflow-jsoo"
+binding = "OCAML_WORKFLOW"
+class_name = "OcamlWorkflow"
