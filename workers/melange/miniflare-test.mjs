@@ -4,7 +4,7 @@
 // (V8 isolate, fetch handler, bindings) without needing a deployed worker.
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { Miniflare } from '../node_modules/miniflare/dist/src/index.js';
+import { Miniflare } from 'miniflare';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
