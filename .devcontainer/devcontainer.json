@@ -21,7 +21,14 @@
         "vscode": {
             "extensions": [
                 "ocamllabs.ocaml-platform"
-            ]
+            ],
+            "settings": {
+                "remote.portsAttributes": {
+                    "8787": {
+                        "onAutoForward": "ignore"
+                    }
+                }
+            }
         }
     },
     "remoteUser": "vscode",

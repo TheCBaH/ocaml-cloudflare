@@ -40,6 +40,9 @@ stage-melange: build-melange
 	mkdir -p workers/melange/dist
 	cp -r _build/default/workers/melange/output workers/melange/dist/
 	cp workers/melange/entry.js workers/melange/dist/
+	npm exec --prefix workers -- esbuild workers/melange/dist/entry.js \
+	    --bundle --format=esm --external:'cloudflare:*' \
+	    --outfile=workers/melange/dist/bundle.js
 
 stage-workers: stage-jsoo stage-melange
 
@@ -68,6 +71,16 @@ smoke-test-melange: stage-melange
 	node workers/melange/smoke-test.mjs
 
 verify-workers: smoke-test-jsoo smoke-test-melange
+
+# ── Miniflare tests (real workerd isolate, no CF account or wrangler dev TTY) ─
+
+miniflare-test-jsoo: stage-jsoo
+	node workers/jsoo/miniflare-test.mjs
+
+miniflare-test-melange: stage-melange
+	node workers/melange/miniflare-test.mjs
+
+miniflare-test-workers: miniflare-test-jsoo miniflare-test-melange
 
 # ── Cloudflare credentials guard ─────────────────────────────────────────────
 # Depend on this target to fail early if CF credentials are missing.
@@ -121,6 +134,9 @@ deploy-test-workers: deploy-workers integration-test-workers
 
 .PHONY: \
 	build-jsoo \
+	miniflare-test-jsoo \
+	miniflare-test-melange \
+	miniflare-test-workers \
 	build-melange \
 	check-cf-credentials \
 	clean \

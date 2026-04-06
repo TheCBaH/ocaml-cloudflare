@@ -1,12 +1,12 @@
 // Run with: node workers/melange/smoke-test.mjs
-// Tests OCaml step function logic directly from the melange output.
-// Full Workflow execution requires a CF runtime — use `make dev-melange`.
+// Tests OCaml step functions and the synchronous fetch handler.
+// The OcamlWorkflow class (durable path) requires a CF runtime — use
+// `wrangler workflows trigger` or `make wrangler-smoke-test-melange`.
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-// Stub Response for the melange module initialisation
 globalThis.Response = class {
   constructor(body, init) { this.body = body; this.init = init; }
 };
@@ -22,7 +22,7 @@ if (typeof m.step_parse !== 'function' ||
   process.exit(1);
 }
 
-// 2. OCaml step logic
+// 2. Step logic produces the right output
 const methodNorm = m.step_parse('https://example.com/', 'GET');
 if (methodNorm !== 'GET') {
   console.error('melange smoke-test FAILED: step_parse returned', methodNorm);

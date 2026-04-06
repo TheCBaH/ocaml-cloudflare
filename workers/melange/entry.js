@@ -4,13 +4,11 @@
 import { step_parse, step_greet, step_annotate }
   from './output/workers/melange/worker.js';
 
-// WorkflowEntrypoint — available in CF runtime; fall back to a stub in Node.js
-// so that `make smoke-test-melange` can load melange output without a CF runtime.
-const { WorkflowEntrypoint } = await import('cloudflare:workers').catch(
-  () => ({ WorkflowEntrypoint: class {} })
-);
+import { WorkflowEntrypoint } from 'cloudflare:workers';
 
-// Workflow class — steps delegate to OCaml functions exported above.
+// Durable Workflow class — use this when you need retry-safe, persistent
+// multi-step execution.  Trigger via `wrangler workflows trigger` or by
+// calling env.OCAML_WORKFLOW.create() from another Worker.
 export class OcamlWorkflow extends WorkflowEntrypoint {
   async run(event, step) {
     const { url, method } = event.payload;
@@ -26,21 +24,12 @@ export class OcamlWorkflow extends WorkflowEntrypoint {
   }
 }
 
-// fetch — creates a Workflow instance and polls for completion.
+// fetch — calls OCaml steps directly for a fast, synchronous response.
 export default {
-  async fetch(request, env, ctx) {
-    const instance = await env.OCAML_WORKFLOW.create({
-      params: { url: request.url, method: request.method },
-    });
-    for (let i = 0; i < 20; i++) {
-      const st = await instance.status();
-      if (st.status === 'complete') return new Response(st.output);
-      if (st.status === 'errored')  return new Response(st.error, { status: 500 });
-      await scheduler.wait(50);
-    }
-    return new Response(
-      JSON.stringify({ workflowId: instance.id, status: 'running' }),
-      { status: 202, headers: { 'content-type': 'application/json' } }
-    );
+  fetch(request, env, _ctx) {
+    const methodNorm = step_parse(request.url, request.method);
+    const body      = step_greet(request.url, methodNorm);
+    const result    = step_annotate(body, env.COMMIT_SHA || '');
+    return new Response(result);
   },
 };

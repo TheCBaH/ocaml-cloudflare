@@ -1,12 +1,12 @@
 // Run with: node workers/jsoo/smoke-test.mjs
-// Tests OCaml step functions and bundle structure.
-// Full Workflow execution requires a CF runtime — use `make dev-jsoo`.
+// Tests OCaml step functions and the synchronous fetch handler.
+// The OcamlWorkflow class (durable path) requires a CF runtime — use
+// `wrangler workflows trigger` or `make wrangler-smoke-test-jsoo`.
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
 
-// Stubs for CF APIs referenced during module evaluation
 globalThis.Response = class {
   constructor(body, init) { this.body = body; this.init = init; }
 };
@@ -26,23 +26,15 @@ if (typeof src.OcamlWorkflow !== 'function') {
   process.exit(1);
 }
 
-// 3. OCaml step functions are set on globalThis by the jsoo IIFE
-const methodNorm = globalThis.ocamlStepParse('https://example.com/', 'GET');
-if (methodNorm !== 'GET') {
-  console.error('jsoo smoke-test FAILED: ocamlStepParse returned', methodNorm);
+// 3. Synchronous fetch handler calls OCaml steps and returns the right body
+const r = src.default.fetch(
+  { url: 'https://example.com/', method: 'GET' },
+  { COMMIT_SHA: 'smoke-test' },
+  {}
+);
+if (!r?.body?.includes('js_of_ocaml') || !r.body.includes('smoke-test')) {
+  console.error('jsoo smoke-test FAILED: unexpected response body:', r?.body);
   process.exit(1);
 }
 
-const body = globalThis.ocamlStepGreet('https://example.com/', 'GET');
-if (!body?.includes('Hello, World!')) {
-  console.error('jsoo smoke-test FAILED: ocamlStepGreet returned', body);
-  process.exit(1);
-}
-
-const annotated = globalThis.ocamlStepAnnotate(body, 'smoke-test');
-if (!annotated?.includes('js_of_ocaml') || !annotated.includes('smoke-test')) {
-  console.error('jsoo smoke-test FAILED: ocamlStepAnnotate returned', annotated);
-  process.exit(1);
-}
-
-console.log('jsoo smoke-test passed  (body: %s)', annotated);
+console.log('jsoo smoke-test passed  (body: %s)', r.body);

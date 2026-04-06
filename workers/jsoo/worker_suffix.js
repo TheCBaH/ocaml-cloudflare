@@ -4,9 +4,11 @@ const { WorkflowEntrypoint } = await import('cloudflare:workers').catch(
   () => ({ WorkflowEntrypoint: class {} })
 );
 
-// Workflow class — CF durable executor.
-// Each step.do() callback delegates to an OCaml function set on globalThis by
-// the jsoo IIFE above; results are plain strings so CF can serialise them.
+// Durable Workflow class — use this when you need retry-safe, persistent
+// multi-step execution.  Trigger via `wrangler workflows trigger` or by
+// calling env.OCAML_WORKFLOW.create() from another Worker.
+// Each step.do() callback delegates to an OCaml function set on globalThis
+// by the jsoo IIFE above; results are plain strings for durable serialisation.
 export class OcamlWorkflow extends WorkflowEntrypoint {
   async run(event, step) {
     const { url, method } = event.payload;
@@ -22,22 +24,14 @@ export class OcamlWorkflow extends WorkflowEntrypoint {
   }
 }
 
-// fetch — creates a Workflow instance and polls for completion.
-// Fast workflows (pure OCaml computation) finish in < 1 s.
+// fetch — calls OCaml steps directly for a fast, synchronous response.
+// The Workflow class above provides the durable path; the fetch handler
+// keeps the request/response loop simple and runtime-independent.
 export default {
-  async fetch(request, env, ctx) {
-    const instance = await env.OCAML_WORKFLOW.create({
-      params: { url: request.url, method: request.method },
-    });
-    for (let i = 0; i < 20; i++) {
-      const st = await instance.status();
-      if (st.status === 'complete') return new Response(st.output);
-      if (st.status === 'errored')  return new Response(st.error, { status: 500 });
-      await scheduler.wait(50);
-    }
-    return new Response(
-      JSON.stringify({ workflowId: instance.id, status: 'running' }),
-      { status: 202, headers: { 'content-type': 'application/json' } }
-    );
+  fetch(request, env, _ctx) {
+    const methodNorm = globalThis.ocamlStepParse(request.url, request.method);
+    const body      = globalThis.ocamlStepGreet(request.url, methodNorm);
+    const result    = globalThis.ocamlStepAnnotate(body, env.COMMIT_SHA || '');
+    return new Response(result);
   },
 };
