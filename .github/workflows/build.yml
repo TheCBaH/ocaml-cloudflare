@@ -26,6 +26,8 @@ jobs:
       run: ${{ env.EXEC }} make npm-install
     - name: verify workers
       run: ${{ env.EXEC }} make verify-workers
+    - name: miniflare tests
+      run: ${{ env.EXEC }} make miniflare-test-workers
     - name: deploy jsoo worker
       if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'devel')
       run: |
