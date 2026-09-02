@@ -5,5 +5,8 @@
   "type": "module",
   "devDependencies": {
     "wrangler": "^4.118.0"
+  },
+  "overrides": {
+    "miniflare": "5.20260730.0-alpha"
   }
 }
