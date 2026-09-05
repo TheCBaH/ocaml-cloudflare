@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
-    "wrangler": "^4.127.1"
+    "wrangler": "^4.128.0"
   },
   "overrides": {
     "miniflare": "5.20260730.0-alpha"
