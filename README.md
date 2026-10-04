@@ -1,6 +1,6 @@
 # OCaml Cloudflare Workers
 
-[![build](https://github.com/TheCBaH/ocaml-cloudflare/actions/workflows/build.yml/badge.svg?branch=devel)](https://github.com/TheCBaH/ocaml-cloudflare/actions/workflows/build.yml)
+[![build](https://github.com/TheCBaH/ocaml-cloudflare/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/TheCBaH/ocaml-cloudflare/actions/workflows/build.yml)
 
 Hello-world [Cloudflare Workers](https://workers.cloudflare.com/) compiled from [OCaml](https://ocaml.org/) using two JS backends:
 
